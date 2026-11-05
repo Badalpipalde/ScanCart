@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-surface: #FAF8F5;
+    --text-primary: #111827;
+    --brand-accent: #1F6F54;
+  }
+
+  .dark {
+    --bg-surface: #121212;
+    --text-primary: #F3F4F6;
+    --brand-accent: #2E8B6A;
+  }
+
+  body {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Distinctive boutique retail font for headings */
+  h1, h2, .font-serif {
+    font-family: 'Instrument Serif', Georgia, serif;
+    letter-spacing: -0.015em;
+  }
+
+  /* Numerical precision for prices */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom subtle animations */
+@keyframes scan-laser {
+  0% {
+    top: 5%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 90%;
+    opacity: 1;
+  }
+  100% {
+    top: 5%;
+    opacity: 0.8;
+  }
+}
+
+.animate-scan-laser {
+  animation: scan-laser 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Viewfinder styling for html5-qrcode */
+#reader video {
+  object-fit: cover !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 16px;
+}
+
+#reader {
+  border: none !important;
+  overflow: hidden;
+}
+
+#reader__scan_region {
+  background: transparent !important;
+}
+
+/* Remove default html5-qrcode controls slop */
+#reader__dashboard_section,
+#reader__dashboard_section_csr,
+#reader__status_span,
+#reader__camera_selection {
+  display: none !important;
+}
+
+/* Hide scrollbars for clean retail presentation */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
