@@ -286,15 +286,3 @@ export async function seedDatabase(shouldConnect = true) {
   console.log('✨ Database seeding completed successfully!');
 }
 
-if (require.main === module) {
-  seedDatabase()
-    .then(async () => {
-      await disconnectDB();
-      process.exit(0);
-    })
-    .catch(async (err) => {
-      console.error('❌ Seeder error:', err);
-      await disconnectDB();
-      process.exit(1);
-    });
-}

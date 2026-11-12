@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { env } from './env';
 
 let mongodInstance: any = null;
+let connectionPromise: Promise<void> | null = null;
 
 export async function connectDB(): Promise<void> {
   // If already connected, reuse existing connection (crucial for serverless warm invocations)
@@ -9,45 +10,57 @@ export async function connectDB(): Promise<void> {
     return;
   }
 
+  // If a connection attempt is in flight, reuse the promise
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
   const primaryUri = env.MONGODB_URI;
 
-  try {
-    // Attempt standard connection with 8s timeout for serverless / Atlas TLS handshake
-    await mongoose.connect(primaryUri, {
-      serverSelectionTimeoutMS: 8000,
-    });
-    console.log(`✅ Connected to MongoDB at: ${primaryUri.split('@').pop()}`);
-  } catch (err: any) {
-    console.error(`⚠️ Could not connect to primary MongoDB (${err.message}).`);
-
-    // In production or on Vercel, DO NOT attempt to run in-memory MongoDB
-    // (mongodb-memory-server is in devDependencies and cannot execute native binaries in serverless lambdas)
-    const isProductionOrServerless =
-      process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
-
-    if (isProductionOrServerless) {
-      throw new Error(
-        `Failed to connect to MongoDB Atlas (${err.message}). Please verify: 1) MONGODB_URI is set correctly in Vercel environment variables, and 2) Network Access in MongoDB Atlas allows 0.0.0.0/0 (anywhere).`
-      );
-    }
-
-    console.log(`🚀 Starting in-memory MongoDB fallback server for local development...`);
-
+  connectionPromise = (async () => {
     try {
-      const { MongoMemoryServer } = await import('mongodb-memory-server');
-      mongodInstance = await MongoMemoryServer.create();
-      const inMemoryUri = mongodInstance.getUri();
-      await mongoose.connect(inMemoryUri);
-      console.log(`✅ Connected to in-memory MongoDB at: ${inMemoryUri}`);
-    } catch (inMemErr: any) {
-      console.error('❌ Failed to start in-memory MongoDB:', inMemErr.message);
-      throw inMemErr;
+      // Standard connection with 5s timeout
+      await mongoose.connect(primaryUri, {
+        serverSelectionTimeoutMS: 5000,
+      });
+      console.log(`✅ Connected to MongoDB at: ${primaryUri.split('@').pop()}`);
+    } catch (err: any) {
+      console.error(`⚠️ Could not connect to primary MongoDB (${err.message}).`);
+
+      // In production or on Vercel, DO NOT attempt to run in-memory MongoDB
+      const isProductionOrServerless =
+        process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+
+      if (isProductionOrServerless) {
+        throw new Error(
+          `Failed to connect to MongoDB Atlas (${err.message}). Please verify: 1) MONGODB_URI is set correctly in Vercel environment variables, and 2) Network Access in MongoDB Atlas allows 0.0.0.0/0 (anywhere).`
+        );
+      }
+
+      console.log(`🚀 Starting in-memory MongoDB fallback server for local development...`);
+
+      try {
+        const { MongoMemoryServer } = await import('mongodb-memory-server');
+        mongodInstance = await MongoMemoryServer.create();
+        const inMemoryUri = mongodInstance.getUri();
+        await mongoose.connect(inMemoryUri);
+        console.log(`✅ Connected to in-memory MongoDB at: ${inMemoryUri}`);
+      } catch (inMemErr: any) {
+        console.error('❌ Failed to start in-memory MongoDB:', inMemErr.message);
+        throw inMemErr;
+      }
     }
-  }
+  })().catch((err) => {
+    connectionPromise = null;
+    throw err;
+  });
+
+  return connectionPromise;
 }
 
 export async function disconnectDB(): Promise<void> {
   await mongoose.disconnect();
+  connectionPromise = null;
   if (mongodInstance) {
     await mongodInstance.stop();
   }

@@ -282,15 +282,3 @@ async function seedDatabase(shouldConnect = true) {
     console.log(`   ...and ${createdProducts.length - 5} more.`);
     console.log('✨ Database seeding completed successfully!');
 }
-if (require.main === module) {
-    seedDatabase()
-        .then(async () => {
-        await (0, db_1.disconnectDB)();
-        process.exit(0);
-    })
-        .catch(async (err) => {
-        console.error('❌ Seeder error:', err);
-        await (0, db_1.disconnectDB)();
-        process.exit(1);
-    });
-}

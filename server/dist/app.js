@@ -2,7 +2,6 @@
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const helmet_1 = __importDefault(require("helmet"));
 const cors_1 = __importDefault(require("cors"));
@@ -14,8 +13,6 @@ const db_1 = require("./config/db");
 const routes_1 = __importDefault(require("./routes"));
 const errorHandler_1 = require("./middleware/errorHandler");
 const rateLimiter_1 = require("./middleware/rateLimiter");
-const Product_1 = require("./models/Product");
-const seedProducts_1 = require("./seeds/seedProducts");
 const app = (0, express_1.default)();
 // Security HTTP headers
 app.use((0, helmet_1.default)({
@@ -57,19 +54,7 @@ const ensureDbConnected = async () => {
         return;
     }
     if (!dbInitPromise) {
-        dbInitPromise = (async () => {
-            await (0, db_1.connectDB)();
-            try {
-                const productCount = await Product_1.Product.countDocuments();
-                if (productCount === 0) {
-                    console.log('📦 Database has 0 products. Auto-seeding mock catalog and test users...');
-                    await (0, seedProducts_1.seedDatabase)(false);
-                }
-            }
-            catch (seedErr) {
-                console.warn('⚠️ Seeding check skipped:', seedErr);
-            }
-        })().catch((err) => {
+        dbInitPromise = (0, db_1.connectDB)().catch((err) => {
             dbInitPromise = null; // Allow retry on subsequent request
             throw err;
         });
@@ -77,7 +62,7 @@ const ensureDbConnected = async () => {
     return dbInitPromise;
 };
 // Health check (always responds with 200 and reports live database state)
-app.get('/api/health', (_req, res) => {
+app.get(['/api/health', '/health'], (_req, res) => {
     const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
     const dbStatus = dbStates[mongoose_1.default.connection.readyState] || 'unknown';
     res.status(200).json({
@@ -88,7 +73,7 @@ app.get('/api/health', (_req, res) => {
     });
 });
 // Ensure DB is initialized before processing API routes
-app.use('/api/v1', async (_req, _res, next) => {
+app.use(['/api/v1', '/v1'], async (_req, _res, next) => {
     try {
         await ensureDbConnected();
         next();
@@ -98,7 +83,7 @@ app.use('/api/v1', async (_req, _res, next) => {
     }
 });
 // Mount versioned API routes
-app.use('/api/v1', routes_1.default);
+app.use(['/api/v1', '/v1'], routes_1.default);
 // 404 handler for unknown routes
 app.use('*', (req, res) => {
     res.status(404).json({
@@ -128,7 +113,4 @@ if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
 }
 // Ensure app can be consumed as callable function or default export
 app.default = app;
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = app;
-}
-exports.default = app;
+module.exports = app;

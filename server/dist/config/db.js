@@ -41,43 +41,54 @@ exports.disconnectDB = disconnectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
 const env_1 = require("./env");
 let mongodInstance = null;
+let connectionPromise = null;
 async function connectDB() {
     // If already connected, reuse existing connection (crucial for serverless warm invocations)
     if (mongoose_1.default.connection.readyState === 1) {
         return;
     }
+    // If a connection attempt is in flight, reuse the promise
+    if (connectionPromise) {
+        return connectionPromise;
+    }
     const primaryUri = env_1.env.MONGODB_URI;
-    try {
-        // Attempt standard connection with 8s timeout for serverless / Atlas TLS handshake
-        await mongoose_1.default.connect(primaryUri, {
-            serverSelectionTimeoutMS: 8000,
-        });
-        console.log(`✅ Connected to MongoDB at: ${primaryUri.split('@').pop()}`);
-    }
-    catch (err) {
-        console.error(`⚠️ Could not connect to primary MongoDB (${err.message}).`);
-        // In production or on Vercel, DO NOT attempt to run in-memory MongoDB
-        // (mongodb-memory-server is in devDependencies and cannot execute native binaries in serverless lambdas)
-        const isProductionOrServerless = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
-        if (isProductionOrServerless) {
-            throw new Error(`Failed to connect to MongoDB Atlas (${err.message}). Please verify: 1) MONGODB_URI is set correctly in Vercel environment variables, and 2) Network Access in MongoDB Atlas allows 0.0.0.0/0 (anywhere).`);
-        }
-        console.log(`🚀 Starting in-memory MongoDB fallback server for local development...`);
+    connectionPromise = (async () => {
         try {
-            const { MongoMemoryServer } = await Promise.resolve().then(() => __importStar(require('mongodb-memory-server')));
-            mongodInstance = await MongoMemoryServer.create();
-            const inMemoryUri = mongodInstance.getUri();
-            await mongoose_1.default.connect(inMemoryUri);
-            console.log(`✅ Connected to in-memory MongoDB at: ${inMemoryUri}`);
+            // Standard connection with 5s timeout
+            await mongoose_1.default.connect(primaryUri, {
+                serverSelectionTimeoutMS: 5000,
+            });
+            console.log(`✅ Connected to MongoDB at: ${primaryUri.split('@').pop()}`);
         }
-        catch (inMemErr) {
-            console.error('❌ Failed to start in-memory MongoDB:', inMemErr.message);
-            throw inMemErr;
+        catch (err) {
+            console.error(`⚠️ Could not connect to primary MongoDB (${err.message}).`);
+            // In production or on Vercel, DO NOT attempt to run in-memory MongoDB
+            const isProductionOrServerless = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+            if (isProductionOrServerless) {
+                throw new Error(`Failed to connect to MongoDB Atlas (${err.message}). Please verify: 1) MONGODB_URI is set correctly in Vercel environment variables, and 2) Network Access in MongoDB Atlas allows 0.0.0.0/0 (anywhere).`);
+            }
+            console.log(`🚀 Starting in-memory MongoDB fallback server for local development...`);
+            try {
+                const { MongoMemoryServer } = await Promise.resolve().then(() => __importStar(require('mongodb-memory-server')));
+                mongodInstance = await MongoMemoryServer.create();
+                const inMemoryUri = mongodInstance.getUri();
+                await mongoose_1.default.connect(inMemoryUri);
+                console.log(`✅ Connected to in-memory MongoDB at: ${inMemoryUri}`);
+            }
+            catch (inMemErr) {
+                console.error('❌ Failed to start in-memory MongoDB:', inMemErr.message);
+                throw inMemErr;
+            }
         }
-    }
+    })().catch((err) => {
+        connectionPromise = null;
+        throw err;
+    });
+    return connectionPromise;
 }
 async function disconnectDB() {
     await mongoose_1.default.disconnect();
+    connectionPromise = null;
     if (mongodInstance) {
         await mongodInstance.stop();
     }

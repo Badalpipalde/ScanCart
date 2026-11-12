@@ -9,8 +9,6 @@ import { connectDB } from './config/db';
 import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimiter';
-import { Product } from './models/Product';
-import { seedDatabase } from './seeds/seedProducts';
 
 const app = express();
 
@@ -66,18 +64,7 @@ const ensureDbConnected = async (): Promise<void> => {
     return;
   }
   if (!dbInitPromise) {
-    dbInitPromise = (async () => {
-      await connectDB();
-      try {
-        const productCount = await Product.countDocuments();
-        if (productCount === 0) {
-          console.log('📦 Database has 0 products. Auto-seeding mock catalog and test users...');
-          await seedDatabase(false);
-        }
-      } catch (seedErr) {
-        console.warn('⚠️ Seeding check skipped:', seedErr);
-      }
-    })().catch((err) => {
+    dbInitPromise = connectDB().catch((err) => {
       dbInitPromise = null; // Allow retry on subsequent request
       throw err;
     });
@@ -86,7 +73,7 @@ const ensureDbConnected = async (): Promise<void> => {
 };
 
 // Health check (always responds with 200 and reports live database state)
-app.get('/api/health', (_req: Request, res: Response) => {
+app.get(['/api/health', '/health'], (_req: Request, res: Response) => {
   const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
   const dbStatus = dbStates[mongoose.connection.readyState] || 'unknown';
   res.status(200).json({
@@ -98,7 +85,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 });
 
 // Ensure DB is initialized before processing API routes
-app.use('/api/v1', async (_req: Request, _res: Response, next) => {
+app.use(['/api/v1', '/v1'], async (_req: Request, _res: Response, next) => {
   try {
     await ensureDbConnected();
     next();
@@ -108,7 +95,7 @@ app.use('/api/v1', async (_req: Request, _res: Response, next) => {
 });
 
 // Mount versioned API routes
-app.use('/api/v1', routes);
+app.use(['/api/v1', '/v1'], routes);
 
 // 404 handler for unknown routes
 app.use('*', (req: Request, res: Response) => {
@@ -144,8 +131,4 @@ if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
 // Ensure app can be consumed as callable function or default export
 (app as any).default = app;
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = app;
-}
-
-export default app;
+export = app;

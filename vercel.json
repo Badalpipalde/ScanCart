@@ -21,7 +21,15 @@
     {
       "source": "/api/(.*)",
       "destination": {
-        "service": "server"
+        "service": "server",
+        "path": "/api/$1"
+      }
+    },
+    {
+      "source": "/api",
+      "destination": {
+        "service": "server",
+        "path": "/api/health"
       }
     },
     {

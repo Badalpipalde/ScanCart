@@ -5,10 +5,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -25,14 +21,8 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/app.ts
-var app_exports = {};
-__export(app_exports, {
-  default: () => app_default
-});
-module.exports = __toCommonJS(app_exports);
 var import_express7 = __toESM(require("express"));
 var import_helmet = __toESM(require("helmet"));
 var import_cors = __toESM(require("cors"));
@@ -76,42 +66,46 @@ var env = parsedEnv.success ? parsedEnv.data : {
 // src/config/db.ts
 var import_mongoose = __toESM(require("mongoose"));
 var mongodInstance = null;
+var connectionPromise = null;
 async function connectDB() {
   if (import_mongoose.default.connection.readyState === 1) {
     return;
   }
+  if (connectionPromise) {
+    return connectionPromise;
+  }
   const primaryUri = env.MONGODB_URI;
-  try {
-    await import_mongoose.default.connect(primaryUri, {
-      serverSelectionTimeoutMS: 8e3
-    });
-    console.log(`\u2705 Connected to MongoDB at: ${primaryUri.split("@").pop()}`);
-  } catch (err) {
-    console.error(`\u26A0\uFE0F Could not connect to primary MongoDB (${err.message}).`);
-    const isProductionOrServerless = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
-    if (isProductionOrServerless) {
-      throw new Error(
-        `Failed to connect to MongoDB Atlas (${err.message}). Please verify: 1) MONGODB_URI is set correctly in Vercel environment variables, and 2) Network Access in MongoDB Atlas allows 0.0.0.0/0 (anywhere).`
-      );
-    }
-    console.log(`\u{1F680} Starting in-memory MongoDB fallback server for local development...`);
+  connectionPromise = (async () => {
     try {
-      const { MongoMemoryServer } = await import("mongodb-memory-server");
-      mongodInstance = await MongoMemoryServer.create();
-      const inMemoryUri = mongodInstance.getUri();
-      await import_mongoose.default.connect(inMemoryUri);
-      console.log(`\u2705 Connected to in-memory MongoDB at: ${inMemoryUri}`);
-    } catch (inMemErr) {
-      console.error("\u274C Failed to start in-memory MongoDB:", inMemErr.message);
-      throw inMemErr;
+      await import_mongoose.default.connect(primaryUri, {
+        serverSelectionTimeoutMS: 5e3
+      });
+      console.log(`\u2705 Connected to MongoDB at: ${primaryUri.split("@").pop()}`);
+    } catch (err) {
+      console.error(`\u26A0\uFE0F Could not connect to primary MongoDB (${err.message}).`);
+      const isProductionOrServerless = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+      if (isProductionOrServerless) {
+        throw new Error(
+          `Failed to connect to MongoDB Atlas (${err.message}). Please verify: 1) MONGODB_URI is set correctly in Vercel environment variables, and 2) Network Access in MongoDB Atlas allows 0.0.0.0/0 (anywhere).`
+        );
+      }
+      console.log(`\u{1F680} Starting in-memory MongoDB fallback server for local development...`);
+      try {
+        const { MongoMemoryServer } = await import("mongodb-memory-server");
+        mongodInstance = await MongoMemoryServer.create();
+        const inMemoryUri = mongodInstance.getUri();
+        await import_mongoose.default.connect(inMemoryUri);
+        console.log(`\u2705 Connected to in-memory MongoDB at: ${inMemoryUri}`);
+      } catch (inMemErr) {
+        console.error("\u274C Failed to start in-memory MongoDB:", inMemErr.message);
+        throw inMemErr;
+      }
     }
-  }
-}
-async function disconnectDB() {
-  await import_mongoose.default.disconnect();
-  if (mongodInstance) {
-    await mongodInstance.stop();
-  }
+  })().catch((err) => {
+    connectionPromise = null;
+    throw err;
+  });
+  return connectionPromise;
 }
 
 // src/routes/index.ts
@@ -1550,288 +1544,6 @@ var errorHandler = (err, _req, res, _next) => {
   });
 };
 
-// src/seeds/seedProducts.ts
-var import_bcryptjs3 = __toESM(require("bcryptjs"));
-var sampleProducts = [
-  {
-    name: "Organic Hass Avocados (Pack of 3)",
-    sku: "AVO-ORG-003",
-    barcode: "8901030864215",
-    price: 180,
-    taxPercent: 0,
-    // fresh produce exempt
-    stock: 45,
-    category: "Fresh Produce",
-    image: "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Artisanal Sourdough Bread Loaf",
-    sku: "BRD-SOUR-500",
-    barcode: "8901030864222",
-    price: 140,
-    taxPercent: 5,
-    stock: 25,
-    category: "Bakery",
-    image: "https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Almond Breeze Unsweetened Milk 1L",
-    sku: "MLK-ALM-100",
-    barcode: "8901030864239",
-    price: 240,
-    taxPercent: 5,
-    stock: 60,
-    category: "Dairy & Plant Milk",
-    image: "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Single Origin Arabica Coffee Beans 250g",
-    sku: "COF-ARA-250",
-    barcode: "8901030864246",
-    price: 490,
-    taxPercent: 5,
-    stock: 35,
-    category: "Beverages",
-    image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Extra Virgin Cold Pressed Olive Oil 500ml",
-    sku: "OIL-EVO-500",
-    barcode: "8901030864253",
-    price: 750,
-    taxPercent: 5,
-    stock: 20,
-    category: "Pantry",
-    image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Organic Rolled Oats 1kg",
-    sku: "OAT-ROL-001",
-    barcode: "8901030864260",
-    price: 195,
-    taxPercent: 5,
-    stock: 50,
-    category: "Breakfast",
-    image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "70% Dark Chocolate Sea Salt Bar 85g",
-    sku: "CHO-DKS-085",
-    barcode: "8901030864277",
-    price: 160,
-    taxPercent: 18,
-    stock: 80,
-    category: "Snacks & Confectionery",
-    image: "https://images.unsplash.com/photo-1548907040-4baa42d10919?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "San Pellegrino Sparkling Natural Mineral Water 750ml",
-    sku: "WTR-SPK-750",
-    barcode: "8901030864284",
-    price: 190,
-    taxPercent: 18,
-    stock: 40,
-    category: "Beverages",
-    image: "https://images.unsplash.com/photo-1560512823-829485b8bf24?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Greek Yogurt Plain Low Fat 400g",
-    sku: "YOG-GRK-400",
-    barcode: "8901030864291",
-    price: 135,
-    taxPercent: 5,
-    stock: 30,
-    category: "Dairy & Plant Milk",
-    image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Raw Forest Wildflower Honey 350g",
-    sku: "HNY-WLD-350",
-    barcode: "8901030864307",
-    price: 360,
-    taxPercent: 5,
-    stock: 30,
-    category: "Pantry",
-    image: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Artisan Sea Salt & Rosemary Crackers 150g",
-    sku: "CRK-ROS-150",
-    barcode: "8901030864314",
-    price: 175,
-    taxPercent: 12,
-    stock: 45,
-    category: "Snacks & Confectionery",
-    image: "https://images.unsplash.com/photo-1590080875515-8a3a8dc5735e?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Cold Pressed Valencia Orange Juice 1L",
-    sku: "JUC-ORG-100",
-    barcode: "8901030864321",
-    price: 199,
-    taxPercent: 12,
-    stock: 35,
-    category: "Beverages",
-    image: "https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Organic Medjool Dates 250g",
-    sku: "DAT-MED-250",
-    barcode: "8901030864338",
-    price: 290,
-    taxPercent: 5,
-    stock: 25,
-    category: "Fresh Produce",
-    image: "https://images.unsplash.com/photo-1577968897966-3d4325b36b61?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Italian Bronze Cut Penne Rigate 500g",
-    sku: "PAS-PEN-500",
-    barcode: "8901030864345",
-    price: 165,
-    taxPercent: 5,
-    stock: 70,
-    category: "Pantry",
-    image: "https://images.unsplash.com/photo-1621996346565-e3d5d6281691?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Classic Tomato Basil Pasta Sauce 350g",
-    sku: "SAU-TOM-350",
-    barcode: "8901030864352",
-    price: 220,
-    taxPercent: 12,
-    stock: 40,
-    category: "Pantry",
-    image: "https://images.unsplash.com/photo-1572449043416-55f4685c9bb7?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Organic Japanese Matcha Green Tea 50g",
-    sku: "TEA-MTC-050",
-    barcode: "8901030864369",
-    price: 680,
-    taxPercent: 5,
-    stock: 15,
-    category: "Beverages",
-    image: "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Roasted & Salted California Pistachios 200g",
-    sku: "NUT-PIS-200",
-    barcode: "8901030864376",
-    price: 340,
-    taxPercent: 5,
-    stock: 50,
-    category: "Snacks & Confectionery",
-    image: "https://images.unsplash.com/photo-1608039829572-78524f79c4c7?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Natural Eco Bamboo Toothbrush (Pack of 2)",
-    sku: "ECO-TOOTH-02",
-    barcode: "8901030864383",
-    price: 120,
-    taxPercent: 18,
-    stock: 90,
-    category: "Personal Care",
-    image: "https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Organic Lavender Essential Hand Wash 300ml",
-    sku: "PC-HAND-300",
-    barcode: "8901030864390",
-    price: 260,
-    taxPercent: 18,
-    stock: 35,
-    category: "Personal Care",
-    image: "https://images.unsplash.com/photo-1608248597359-5633857e0569?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  },
-  {
-    name: "Fairtrade Madagascar Pure Vanilla Extract 60ml",
-    sku: "VAN-EXT-060",
-    barcode: "8901030864406",
-    price: 420,
-    taxPercent: 12,
-    stock: 20,
-    category: "Bakery",
-    image: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=600&q=80",
-    isActive: true
-  }
-];
-async function seedDatabase(shouldConnect = true) {
-  console.log("\u{1F331} Starting ScanCart Database Seeder...");
-  if (shouldConnect) {
-    await connectDB();
-  }
-  await Promise.all([
-    Product.deleteMany({}),
-    User.deleteMany({}),
-    Cart.deleteMany({}),
-    Order.deleteMany({})
-  ]);
-  console.log("\u{1F9F9} Cleaned existing database collections");
-  const passwordSalt = await import_bcryptjs3.default.genSalt(12);
-  const defaultPasswordHash = await import_bcryptjs3.default.hash("Password123!", passwordSalt);
-  const users = await User.insertMany([
-    {
-      name: "Aria Sharma (Customer)",
-      email: "customer@scancart.store",
-      passwordHash: defaultPasswordHash,
-      role: "customer"
-    },
-    {
-      name: "Marcus Vance (Staff)",
-      email: "staff@scancart.store",
-      passwordHash: defaultPasswordHash,
-      role: "staff"
-    },
-    {
-      name: "Elena Rostova (Store Manager / Admin)",
-      email: "admin@scancart.store",
-      passwordHash: defaultPasswordHash,
-      role: "admin"
-    }
-  ]);
-  console.log(`\u{1F464} Created ${users.length} initial test users:`);
-  console.log("   - Customer: customer@scancart.store / Password123!");
-  console.log("   - Staff:    staff@scancart.store    / Password123!");
-  console.log("   - Admin:    admin@scancart.store    / Password123!");
-  const createdProducts = await Product.insertMany(sampleProducts);
-  console.log(`\u{1F6CD}\uFE0F Created ${createdProducts.length} retail products with unique barcodes:`);
-  createdProducts.slice(0, 5).forEach((p) => {
-    console.log(`   - [${p.barcode}] ${p.name} (\u20B9${p.price})`);
-  });
-  console.log(`   ...and ${createdProducts.length - 5} more.`);
-  console.log("\u2728 Database seeding completed successfully!");
-}
-if (require.main === module) {
-  seedDatabase().then(async () => {
-    await disconnectDB();
-    process.exit(0);
-  }).catch(async (err) => {
-    console.error("\u274C Seeder error:", err);
-    await disconnectDB();
-    process.exit(1);
-  });
-}
-
 // src/app.ts
 var app = (0, import_express7.default)();
 app.use(
@@ -1867,25 +1579,14 @@ var ensureDbConnected = async () => {
     return;
   }
   if (!dbInitPromise) {
-    dbInitPromise = (async () => {
-      await connectDB();
-      try {
-        const productCount = await Product.countDocuments();
-        if (productCount === 0) {
-          console.log("\u{1F4E6} Database has 0 products. Auto-seeding mock catalog and test users...");
-          await seedDatabase(false);
-        }
-      } catch (seedErr) {
-        console.warn("\u26A0\uFE0F Seeding check skipped:", seedErr);
-      }
-    })().catch((err) => {
+    dbInitPromise = connectDB().catch((err) => {
       dbInitPromise = null;
       throw err;
     });
   }
   return dbInitPromise;
 };
-app.get("/api/health", (_req, res) => {
+app.get(["/api/health", "/health"], (_req, res) => {
   const dbStates = ["disconnected", "connected", "connecting", "disconnecting"];
   const dbStatus = dbStates[import_mongoose6.default.connection.readyState] || "unknown";
   res.status(200).json({
@@ -1895,7 +1596,7 @@ app.get("/api/health", (_req, res) => {
     database: dbStatus
   });
 });
-app.use("/api/v1", async (_req, _res, next) => {
+app.use(["/api/v1", "/v1"], async (_req, _res, next) => {
   try {
     await ensureDbConnected();
     next();
@@ -1903,7 +1604,7 @@ app.use("/api/v1", async (_req, _res, next) => {
     next(error);
   }
 });
-app.use("/api/v1", routes_default);
+app.use(["/api/v1", "/v1"], routes_default);
 app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
@@ -1928,7 +1629,4 @@ if (process.env.NODE_ENV === "development" && !process.env.VERCEL) {
   startServer();
 }
 app.default = app;
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = app;
-}
-var app_default = app;
+module.exports = app;
