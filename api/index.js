@@ -112026,9 +112026,11 @@ var env = {
 // src/config/db.ts
 var import_mongoose = __toESM(require_mongoose2());
 var import_dns = __toESM(require("dns"));
-try {
-  import_dns.default.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch {
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  try {
+    import_dns.default.setServers(["8.8.8.8", "1.1.1.1"]);
+  } catch {
+  }
 }
 var mongodInstance = null;
 var connectionPromise = null;

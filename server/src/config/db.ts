@@ -2,11 +2,18 @@ import mongoose from 'mongoose';
 import dns from 'dns';
 import { env } from './env';
 
-// Configure reliable DNS servers to prevent querySrv ECONNREFUSED in serverless / cloud environments
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch {
-  // Ignore in environments where setServers is restricted
+// Only set custom DNS servers in local development environments where system DNS might fail SRV lookups.
+// In cloud / serverless environments (Vercel / AWS Lambda), NEVER override default resolvers as outbound port 53 is blocked.
+if (
+  process.env.NODE_ENV !== 'production' &&
+  !process.env.VERCEL &&
+  !process.env.AWS_LAMBDA_FUNCTION_NAME
+) {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch {
+    // Ignore in restricted environments
+  }
 }
 
 let mongodInstance: any = null;
@@ -27,7 +34,6 @@ export async function connectDB(): Promise<void> {
 
   connectionPromise = (async () => {
     try {
-      // Standard connection with 5s timeout
       await mongoose.connect(primaryUri, {
         serverSelectionTimeoutMS: 5000,
       });
@@ -35,7 +41,6 @@ export async function connectDB(): Promise<void> {
     } catch (err: any) {
       console.error(`⚠️ Could not connect to primary MongoDB (${err.message}).`);
 
-      // In production or on Vercel, DO NOT attempt to run in-memory MongoDB
       const isProductionOrServerless =
         process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 

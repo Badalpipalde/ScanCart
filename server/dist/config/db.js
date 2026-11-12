@@ -41,12 +41,17 @@ exports.disconnectDB = disconnectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
 const dns_1 = __importDefault(require("dns"));
 const env_1 = require("./env");
-// Configure reliable DNS servers to prevent querySrv ECONNREFUSED in serverless / cloud environments
-try {
-    dns_1.default.setServers(['8.8.8.8', '1.1.1.1']);
-}
-catch {
-    // Ignore in environments where setServers is restricted
+// Only set custom DNS servers in local development environments where system DNS might fail SRV lookups.
+// In cloud / serverless environments (Vercel / AWS Lambda), NEVER override default resolvers as outbound port 53 is blocked.
+if (process.env.NODE_ENV !== 'production' &&
+    !process.env.VERCEL &&
+    !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    try {
+        dns_1.default.setServers(['8.8.8.8', '1.1.1.1']);
+    }
+    catch {
+        // Ignore in restricted environments
+    }
 }
 let mongodInstance = null;
 let connectionPromise = null;
@@ -62,7 +67,6 @@ async function connectDB() {
     const primaryUri = env_1.env.MONGODB_URI;
     connectionPromise = (async () => {
         try {
-            // Standard connection with 5s timeout
             await mongoose_1.default.connect(primaryUri, {
                 serverSelectionTimeoutMS: 5000,
             });
@@ -70,7 +74,6 @@ async function connectDB() {
         }
         catch (err) {
             console.error(`⚠️ Could not connect to primary MongoDB (${err.message}).`);
-            // In production or on Vercel, DO NOT attempt to run in-memory MongoDB
             const isProductionOrServerless = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
             if (isProductionOrServerless) {
                 throw new Error(`Failed to connect to MongoDB Atlas (${err.message}). Please verify: 1) MONGODB_URI is set correctly in Vercel environment variables, and 2) Network Access in MongoDB Atlas allows 0.0.0.0/0 (anywhere).`);
