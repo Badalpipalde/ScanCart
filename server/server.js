@@ -114315,6 +114315,13 @@ var ensureDbConnected = async () => {
   }
   return dbInitPromise;
 };
+app.get(["/api", "/"], (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "ScanCart API",
+    health: "/api/health"
+  });
+});
 app.get(["/api/health", "/health"], (_req, res) => {
   const dbStates = ["disconnected", "connected", "connecting", "disconnecting"];
   const dbStatus = dbStates[import_mongoose6.default.connection.readyState] || "unknown";

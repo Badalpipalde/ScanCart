@@ -13,23 +13,20 @@
     },
     "server": {
       "root": "server",
-      "framework": "express",
-      "entrypoint": "server.js"
+      "framework": "express"
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": {
-        "service": "server",
-        "path": "/api/$1"
+        "service": "server"
       }
     },
     {
       "source": "/api",
       "destination": {
-        "service": "server",
-        "path": "/api/health"
+        "service": "server"
       }
     },
     {

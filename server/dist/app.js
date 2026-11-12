@@ -61,6 +61,14 @@ const ensureDbConnected = async () => {
     }
     return dbInitPromise;
 };
+// Root API endpoint
+app.get(['/api', '/'], (_req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        service: 'ScanCart API',
+        health: '/api/health',
+    });
+});
 // Health check (always responds with 200 and reports live database state)
 app.get(['/api/health', '/health'], (_req, res) => {
     const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
