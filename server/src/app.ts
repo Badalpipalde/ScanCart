@@ -12,6 +12,9 @@ import { apiLimiter } from './middleware/rateLimiter';
 
 const app = express();
 
+// Trust reverse proxy (Vercel, Cloudflare, load balancers)
+app.set('trust proxy', 1);
+
 // Security HTTP headers
 app.use(
   helmet({
@@ -53,8 +56,29 @@ if (env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Global API rate limit
-app.use('/api', apiLimiter);
+// Root API endpoint (bypasses rate limit)
+app.get(['/api', '/'], (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'ScanCart API',
+    health: '/api/health',
+  });
+});
+
+// Health check (always responds with 200 and reports live database state, bypasses rate limit)
+app.get(['/api/health', '/health'], (_req: Request, res: Response) => {
+  const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const dbStatus = dbStates[mongoose.connection.readyState] || 'unknown';
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'ScanCart API',
+    database: dbStatus,
+  });
+});
+
+// Global API rate limit on versioned routes
+app.use(['/api/v1', '/v1'], apiLimiter);
 
 // DB initialization for serverless / Vercel execution
 let dbInitPromise: Promise<void> | null = null;
@@ -71,27 +95,6 @@ const ensureDbConnected = async (): Promise<void> => {
   }
   return dbInitPromise;
 };
-
-// Root API endpoint
-app.get(['/api', '/'], (_req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'ok',
-    service: 'ScanCart API',
-    health: '/api/health',
-  });
-});
-
-// Health check (always responds with 200 and reports live database state)
-app.get(['/api/health', '/health'], (_req: Request, res: Response) => {
-  const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
-  const dbStatus = dbStates[mongoose.connection.readyState] || 'unknown';
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    service: 'ScanCart API',
-    database: dbStatus,
-  });
-});
 
 // Ensure DB is initialized before processing API routes
 app.use(['/api/v1', '/v1'], async (_req: Request, _res: Response, next) => {

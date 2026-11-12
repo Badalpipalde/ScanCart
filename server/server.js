@@ -113118,6 +113118,7 @@ var authLimiter = lib_default({
   // 30 requests per window
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false, xForwardedForHeader: false },
   message: {
     success: false,
     message: "Too many authentication attempts. Please try again after 15 minutes."
@@ -113130,6 +113131,7 @@ var paymentLimiter = lib_default({
   // 25 payment requests per window
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false, xForwardedForHeader: false },
   message: {
     success: false,
     message: "Too many payment requests. Please wait a few moments before trying again."
@@ -113142,6 +113144,7 @@ var apiLimiter = lib_default({
   // 120 requests per minute
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false, xForwardedForHeader: false },
   message: {
     success: false,
     message: "Too many requests. Please slow down."
@@ -114275,6 +114278,7 @@ var errorHandler = (err, _req, res, _next) => {
 
 // src/app.ts
 var app = (0, import_express7.default)();
+app.set("trust proxy", 1);
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -114301,20 +114305,6 @@ app.use(import_express7.default.urlencoded({ extended: true, limit: "2mb" }));
 if (env.NODE_ENV !== "test") {
   app.use((0, import_morgan.default)("dev"));
 }
-app.use("/api", apiLimiter);
-var dbInitPromise = null;
-var ensureDbConnected = async () => {
-  if (import_mongoose6.default.connection.readyState === 1) {
-    return;
-  }
-  if (!dbInitPromise) {
-    dbInitPromise = connectDB().catch((err) => {
-      dbInitPromise = null;
-      throw err;
-    });
-  }
-  return dbInitPromise;
-};
 app.get(["/api", "/"], (_req, res) => {
   res.status(200).json({
     status: "ok",
@@ -114332,6 +114322,20 @@ app.get(["/api/health", "/health"], (_req, res) => {
     database: dbStatus
   });
 });
+app.use(["/api/v1", "/v1"], apiLimiter);
+var dbInitPromise = null;
+var ensureDbConnected = async () => {
+  if (import_mongoose6.default.connection.readyState === 1) {
+    return;
+  }
+  if (!dbInitPromise) {
+    dbInitPromise = connectDB().catch((err) => {
+      dbInitPromise = null;
+      throw err;
+    });
+  }
+  return dbInitPromise;
+};
 app.use(["/api/v1", "/v1"], async (_req, _res, next) => {
   try {
     await ensureDbConnected();

@@ -10,6 +10,7 @@ exports.authLimiter = (0, express_rate_limit_1.default)({
     max: 30, // 30 requests per window
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { trustProxy: false, xForwardedForHeader: false },
     message: {
         success: false,
         message: 'Too many authentication attempts. Please try again after 15 minutes.',
@@ -20,6 +21,7 @@ exports.paymentLimiter = (0, express_rate_limit_1.default)({
     max: 25, // 25 payment requests per window
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { trustProxy: false, xForwardedForHeader: false },
     message: {
         success: false,
         message: 'Too many payment requests. Please wait a few moments before trying again.',
@@ -30,6 +32,7 @@ exports.apiLimiter = (0, express_rate_limit_1.default)({
     max: 120, // 120 requests per minute
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { trustProxy: false, xForwardedForHeader: false },
     message: {
         success: false,
         message: 'Too many requests. Please slow down.',

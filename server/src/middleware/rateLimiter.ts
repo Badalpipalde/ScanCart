@@ -5,6 +5,7 @@ export const authLimiter = rateLimit({
   max: 30, // 30 requests per window
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false, xForwardedForHeader: false },
   message: {
     success: false,
     message: 'Too many authentication attempts. Please try again after 15 minutes.',
@@ -16,6 +17,7 @@ export const paymentLimiter = rateLimit({
   max: 25, // 25 payment requests per window
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false, xForwardedForHeader: false },
   message: {
     success: false,
     message: 'Too many payment requests. Please wait a few moments before trying again.',
@@ -27,6 +29,7 @@ export const apiLimiter = rateLimit({
   max: 120, // 120 requests per minute
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false, xForwardedForHeader: false },
   message: {
     success: false,
     message: 'Too many requests. Please slow down.',

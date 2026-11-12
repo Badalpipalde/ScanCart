@@ -14,6 +14,8 @@ const routes_1 = __importDefault(require("./routes"));
 const errorHandler_1 = require("./middleware/errorHandler");
 const rateLimiter_1 = require("./middleware/rateLimiter");
 const app = (0, express_1.default)();
+// Trust reverse proxy (Vercel, Cloudflare, load balancers)
+app.set('trust proxy', 1);
 // Security HTTP headers
 app.use((0, helmet_1.default)({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -45,8 +47,27 @@ app.use(express_1.default.urlencoded({ extended: true, limit: '2mb' }));
 if (env_1.env.NODE_ENV !== 'test') {
     app.use((0, morgan_1.default)('dev'));
 }
-// Global API rate limit
-app.use('/api', rateLimiter_1.apiLimiter);
+// Root API endpoint (bypasses rate limit)
+app.get(['/api', '/'], (_req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        service: 'ScanCart API',
+        health: '/api/health',
+    });
+});
+// Health check (always responds with 200 and reports live database state, bypasses rate limit)
+app.get(['/api/health', '/health'], (_req, res) => {
+    const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+    const dbStatus = dbStates[mongoose_1.default.connection.readyState] || 'unknown';
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        service: 'ScanCart API',
+        database: dbStatus,
+    });
+});
+// Global API rate limit on versioned routes
+app.use(['/api/v1', '/v1'], rateLimiter_1.apiLimiter);
 // DB initialization for serverless / Vercel execution
 let dbInitPromise = null;
 const ensureDbConnected = async () => {
@@ -61,25 +82,6 @@ const ensureDbConnected = async () => {
     }
     return dbInitPromise;
 };
-// Root API endpoint
-app.get(['/api', '/'], (_req, res) => {
-    res.status(200).json({
-        status: 'ok',
-        service: 'ScanCart API',
-        health: '/api/health',
-    });
-});
-// Health check (always responds with 200 and reports live database state)
-app.get(['/api/health', '/health'], (_req, res) => {
-    const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
-    const dbStatus = dbStates[mongoose_1.default.connection.readyState] || 'unknown';
-    res.status(200).json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        service: 'ScanCart API',
-        database: dbStatus,
-    });
-});
 // Ensure DB is initialized before processing API routes
 app.use(['/api/v1', '/v1'], async (_req, _res, next) => {
     try {
