@@ -126,7 +126,8 @@ const startServer = async () => {
 if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
     startServer();
 }
-// Single default export (no mixed exports)
+// Ensure app can be consumed as callable function or default export
+app.default = app;
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = app;
 }
