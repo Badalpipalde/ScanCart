@@ -2,6 +2,10 @@
   "name": "scancart-monorepo",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
   "description": "ScanCart - Production-quality MERN Scan-and-Pay Self-Checkout Retail Application",
   "scripts": {
     "install:all": "npm --prefix server install && npm --prefix client install",

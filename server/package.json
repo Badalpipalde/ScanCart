@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "tsx watch src/app.ts",
-    "build": "esbuild src/app.ts --bundle --platform=node --format=cjs --packages=external --outfile=server.js && tsc",
+    "build": "esbuild src/app.ts --bundle --platform=node --format=cjs --external:mongodb-memory-server --outfile=server.js && tsc",
     "start": "node server.js",
     "seed": "tsx src/seeds/runSeed.ts",
     "test": "vitest run"
