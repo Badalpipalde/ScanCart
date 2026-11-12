@@ -6,8 +6,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.razorpayInstance = exports.isMockRazorpay = void 0;
 const razorpay_1 = __importDefault(require("razorpay"));
 const env_1 = require("./env");
-exports.isMockRazorpay = env_1.env.RAZORPAY_KEY_ID.includes('mock') || env_1.env.RAZORPAY_KEY_SECRET.includes('mock');
-exports.razorpayInstance = new razorpay_1.default({
-    key_id: env_1.env.RAZORPAY_KEY_ID,
-    key_secret: env_1.env.RAZORPAY_KEY_SECRET,
-});
+exports.isMockRazorpay = !env_1.env.RAZORPAY_KEY_ID ||
+    env_1.env.RAZORPAY_KEY_ID.includes('mock') ||
+    !env_1.env.RAZORPAY_KEY_SECRET ||
+    env_1.env.RAZORPAY_KEY_SECRET.includes('mock');
+exports.razorpayInstance = exports.isMockRazorpay
+    ? null
+    : new razorpay_1.default({
+        key_id: env_1.env.RAZORPAY_KEY_ID,
+        key_secret: env_1.env.RAZORPAY_KEY_SECRET,
+    });

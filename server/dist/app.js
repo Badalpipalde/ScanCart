@@ -123,7 +123,7 @@ const startServer = async () => {
         process.exit(1);
     }
 };
-if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
     startServer();
 }
 // Single default export (no mixed exports)
