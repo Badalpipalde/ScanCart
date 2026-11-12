@@ -13,7 +13,7 @@
     "test:server": "npm --prefix server test",
     "build:server": "npm --prefix server run build",
     "build:client": "npm --prefix client run build",
-    "build": "npm run build:server && npm run build:client",
+    "build": "npm run build:server && npm run build:client && node -e \"const fs = require('fs'); fs.cpSync('client/dist', 'dist', { recursive: true });\"",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev"
   }
