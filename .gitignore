@@ -3,6 +3,8 @@ node_modules/
 
 # Production builds
 dist/
+stats.html
+client/stats.html
 
 # Environment files
 .env

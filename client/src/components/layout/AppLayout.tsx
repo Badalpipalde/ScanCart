@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
@@ -144,7 +144,15 @@ export const AppLayout: React.FC = () => {
           isScannerPage ? 'p-0 sm:px-4 sm:py-6' : 'px-4 py-6'
         } pb-24 sm:pb-12`}
       >
-        <Outlet />
+        <Suspense
+          fallback={
+            <div className="min-h-[40vh] flex flex-col items-center justify-center gap-2 p-6">
+              <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Mobile Bottom Navigation */}

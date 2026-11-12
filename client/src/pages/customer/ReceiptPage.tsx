@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import confetti from 'canvas-confetti';
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { api } from '../../lib/api';
 import { QRReceiptCard } from '../../components/receipt/QRReceiptCard';
@@ -34,6 +33,7 @@ export const ReceiptPage: React.FC = () => {
 
         // Trigger subtle confetti burst
         try {
+          const confetti = (await import('canvas-confetti')).default;
           confetti({
             particleCount: 40,
             spread: 60,

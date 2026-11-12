@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
+import mongoose from 'mongoose';
 import { env } from './config/env';
 import { connectDB } from './config/db';
 import routes from './routes';
@@ -11,7 +12,7 @@ import { apiLimiter } from './middleware/rateLimiter';
 import { Product } from './models/Product';
 import { seedDatabase } from './seeds/seedProducts';
 
-export const app = express();
+const app = express();
 
 // Security HTTP headers
 app.use(
@@ -57,13 +58,53 @@ if (env.NODE_ENV !== 'test') {
 // Global API rate limit
 app.use('/api', apiLimiter);
 
-// Health check
+// DB initialization for serverless / Vercel execution
+let dbInitPromise: Promise<void> | null = null;
+
+const ensureDbConnected = async (): Promise<void> => {
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+  if (!dbInitPromise) {
+    dbInitPromise = (async () => {
+      await connectDB();
+      try {
+        const productCount = await Product.countDocuments();
+        if (productCount === 0) {
+          console.log('📦 Database has 0 products. Auto-seeding mock catalog and test users...');
+          await seedDatabase(false);
+        }
+      } catch (seedErr) {
+        console.warn('⚠️ Seeding check skipped:', seedErr);
+      }
+    })().catch((err) => {
+      dbInitPromise = null; // Allow retry on subsequent request
+      throw err;
+    });
+  }
+  return dbInitPromise;
+};
+
+// Health check (always responds with 200 and reports live database state)
 app.get('/api/health', (_req: Request, res: Response) => {
+  const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const dbStatus = dbStates[mongoose.connection.readyState] || 'unknown';
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'ScanCart API',
+    database: dbStatus,
   });
+});
+
+// Ensure DB is initialized before processing API routes
+app.use('/api/v1', async (_req: Request, _res: Response, next) => {
+  try {
+    await ensureDbConnected();
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Mount versioned API routes
@@ -79,37 +120,6 @@ app.use('*', (req: Request, res: Response) => {
 
 // Centralized error handling
 app.use(errorHandler);
-
-// DB initialization for serverless / Vercel execution
-let dbInitPromise: Promise<void> | null = null;
-
-export const ensureDbConnected = async (): Promise<void> => {
-  if (!dbInitPromise) {
-    dbInitPromise = (async () => {
-      await connectDB();
-      try {
-        const productCount = await Product.countDocuments();
-        if (productCount === 0) {
-          console.log('📦 Database has 0 products. Auto-seeding mock catalog and test users...');
-          await seedDatabase(false);
-        }
-      } catch (seedErr) {
-        console.warn('⚠️ Seeding check skipped:', seedErr);
-      }
-    })();
-  }
-  return dbInitPromise;
-};
-
-// Ensure DB is initialized before processing requests in serverless / Vercel environment
-app.use(async (_req: Request, _res: Response, next) => {
-  try {
-    await ensureDbConnected();
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
 
 // Start server for traditional Node.js environments (local dev / standalone)
 const startServer = async () => {
@@ -129,6 +139,11 @@ const startServer = async () => {
 
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   startServer();
+}
+
+// Single default export (no mixed exports)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = app;
 }
 
 export default app;

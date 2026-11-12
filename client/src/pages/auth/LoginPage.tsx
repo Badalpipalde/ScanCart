@@ -2,13 +2,11 @@
 
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { motion, type Variants } from "motion/react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
+import { motion, type Variants } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 import logoImage from "../../images/ScanCart Dynamic QR Cart Logo.png";
-import { UserCheck, ShieldCheck } from "lucide-react";
+import { UserCheck, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 // Google SVG Icon
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -195,7 +193,11 @@ export const LoginPage: React.FC = () => {
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  <HugeiconsIcon icon={showPassword ? ViewIcon : ViewOffIcon} className="size-5" />
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </motion.div>

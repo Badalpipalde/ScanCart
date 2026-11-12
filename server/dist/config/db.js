@@ -42,17 +42,27 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const env_1 = require("./env");
 let mongodInstance = null;
 async function connectDB() {
+    // If already connected, reuse existing connection (crucial for serverless warm invocations)
+    if (mongoose_1.default.connection.readyState === 1) {
+        return;
+    }
     const primaryUri = env_1.env.MONGODB_URI;
     try {
-        // Attempt standard connection with 2.5s timeout
+        // Attempt standard connection with 8s timeout for serverless / Atlas TLS handshake
         await mongoose_1.default.connect(primaryUri, {
-            serverSelectionTimeoutMS: 2500,
+            serverSelectionTimeoutMS: 8000,
         });
         console.log(`✅ Connected to MongoDB at: ${primaryUri.split('@').pop()}`);
     }
     catch (err) {
-        console.warn(`⚠️ Could not connect to primary MongoDB (${err.message}).`);
-        console.log(`🚀 Starting in-memory MongoDB fallback server...`);
+        console.error(`⚠️ Could not connect to primary MongoDB (${err.message}).`);
+        // In production or on Vercel, DO NOT attempt to run in-memory MongoDB
+        // (mongodb-memory-server is in devDependencies and cannot execute native binaries in serverless lambdas)
+        const isProductionOrServerless = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+        if (isProductionOrServerless) {
+            throw new Error(`Failed to connect to MongoDB Atlas (${err.message}). Please verify: 1) MONGODB_URI is set correctly in Vercel environment variables, and 2) Network Access in MongoDB Atlas allows 0.0.0.0/0 (anywhere).`);
+        }
+        console.log(`🚀 Starting in-memory MongoDB fallback server for local development...`);
         try {
             const { MongoMemoryServer } = await Promise.resolve().then(() => __importStar(require('mongodb-memory-server')));
             mongodInstance = await MongoMemoryServer.create();
@@ -65,9 +75,6 @@ async function connectDB() {
             throw inMemErr;
         }
     }
-    mongoose_1.default.connection.on('error', (err) => {
-        console.error('MongoDB connection error:', err);
-    });
 }
 async function disconnectDB() {
     await mongoose_1.default.disconnect();
