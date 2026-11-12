@@ -1,5 +1,13 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
 import { env } from './env';
+
+// Configure reliable DNS servers to prevent querySrv ECONNREFUSED in serverless / cloud environments
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Ignore in environments where setServers is restricted
+}
 
 let mongodInstance: any = null;
 let connectionPromise: Promise<void> | null = null;

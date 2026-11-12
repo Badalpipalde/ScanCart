@@ -1,3 +1,5 @@
 import app from './src/app';
 
-export default app;
+(app as any).default = app;
+
+export = app;

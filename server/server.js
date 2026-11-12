@@ -34669,7 +34669,7 @@ var require_gssapi = __commonJS({
     exports2.GSSAPI = exports2.GSSAPICanonicalizationValue = void 0;
     exports2.performGSSAPICanonicalizeHostName = performGSSAPICanonicalizeHostName;
     exports2.resolveCname = resolveCname;
-    var dns = require("dns");
+    var dns2 = require("dns");
     var deps_1 = require_deps();
     var error_1 = require_error();
     var utils_1 = require_utils3();
@@ -34769,9 +34769,9 @@ var require_gssapi = __commonJS({
         return host;
       }
       if (mode === exports2.GSSAPICanonicalizationValue.on || mode === exports2.GSSAPICanonicalizationValue.forwardAndReverse) {
-        const { address } = await dns.promises.lookup(host);
+        const { address } = await dns2.promises.lookup(host);
         try {
-          const results = await dns.promises.resolvePtr(address);
+          const results = await dns2.promises.resolvePtr(address);
           return results.length > 0 ? results[0] : host;
         } catch {
           return await resolveCname(host);
@@ -34782,7 +34782,7 @@ var require_gssapi = __commonJS({
     }
     async function resolveCname(host) {
       try {
-        const results = await dns.promises.resolveCname(host);
+        const results = await dns2.promises.resolveCname(host);
         return results.length > 0 ? results[0] : host;
       } catch {
         return host;
@@ -45925,7 +45925,7 @@ var require_connection_string = __commonJS({
     exports2.DEFAULT_OPTIONS = exports2.OPTIONS = void 0;
     exports2.resolveSRVRecord = resolveSRVRecord;
     exports2.parseOptions = parseOptions2;
-    var dns = require("dns");
+    var dns2 = require("dns");
     var mongodb_connection_string_url_1 = require_lib5();
     var url_1 = require("url");
     var mongo_credentials_1 = require_mongo_credentials();
@@ -45947,10 +45947,10 @@ var require_connection_string = __commonJS({
     function retryDNSTimeoutFor(api) {
       return async function dnsReqRetryTimeout(lookupAddress) {
         try {
-          return await dns.promises[api](lookupAddress);
+          return await dns2.promises[api](lookupAddress);
         } catch (firstDNSError) {
-          if (firstDNSError.code === dns.TIMEOUT) {
-            return await dns.promises[api](lookupAddress);
+          if (firstDNSError.code === dns2.TIMEOUT) {
+            return await dns2.promises[api](lookupAddress);
           } else {
             throw firstDNSError;
           }
@@ -50206,7 +50206,7 @@ var require_srv_polling = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.SrvPoller = exports2.SrvPollingEvent = void 0;
-    var dns = require("dns");
+    var dns2 = require("dns");
     var timers_1 = require("timers");
     var error_1 = require_error();
     var mongo_types_1 = require_mongo_types();
@@ -50276,7 +50276,7 @@ var require_srv_polling = __commonJS({
         const generation = this.generation;
         let srvRecords;
         try {
-          srvRecords = await dns.promises.resolveSrv(this.srvAddress);
+          srvRecords = await dns2.promises.resolveSrv(this.srvAddress);
         } catch {
           this.failure();
           return;
@@ -111977,11 +111977,28 @@ var NEVER = INVALID;
 
 // src/config/env.ts
 import_dotenv.default.config();
+var defaultAtlasUri = "mongodb+srv://badalpipalde3_db_user:Badal123@cluster0.2t5tk5v.mongodb.net/scancart?retryWrites=true&w=majority";
+var sanitizeMongoUri = (uri) => {
+  if (!uri || uri.includes("127.0.0.1") || uri.includes("localhost")) {
+    if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+      return defaultAtlasUri;
+    }
+    return uri || "mongodb://127.0.0.1:27017/scancart";
+  }
+  let clean = uri.trim();
+  if (clean.startsWith("mongodb+srv://") && clean.endsWith(".mongodb.net/")) {
+    clean = `${clean}scancart?retryWrites=true&w=majority`;
+  } else if (clean.startsWith("mongodb+srv://") && clean.endsWith(".mongodb.net")) {
+    clean = `${clean}/scancart?retryWrites=true&w=majority`;
+  }
+  return clean;
+};
+var resolvedMongoUri = sanitizeMongoUri(process.env.MONGODB_URI);
 var envSchema = external_exports.object({
   PORT: external_exports.string().default("5000"),
   NODE_ENV: external_exports.enum(["development", "production", "test"]).default("development"),
   CLIENT_URL: external_exports.string().default("http://localhost:5173"),
-  MONGODB_URI: external_exports.string().default("mongodb://127.0.0.1:27017/scancart"),
+  MONGODB_URI: external_exports.string().default(resolvedMongoUri),
   JWT_SECRET: external_exports.string().min(16, "JWT_SECRET must be at least 16 chars").default("scancart_jwt_super_secret_production_key_2026_change_in_prod"),
   JWT_EXPIRES_IN: external_exports.string().default("7d"),
   RECEIPT_SECRET: external_exports.string().min(16, "RECEIPT_SECRET must be at least 16 chars").default("scancart_hmac_sha256_receipt_secret_key_84920491"),
@@ -111993,11 +112010,11 @@ var parsedEnv = envSchema.safeParse(process.env);
 if (!parsedEnv.success) {
   console.warn("\u26A0\uFE0F Environment variable validation warnings:", parsedEnv.error.format());
 }
-var env = parsedEnv.success ? parsedEnv.data : {
+var env = {
   PORT: process.env.PORT || "5000",
   NODE_ENV: ["development", "production", "test"].includes(process.env.NODE_ENV || "") ? process.env.NODE_ENV : "production",
   CLIENT_URL: process.env.CLIENT_URL || "https://scancart-cloud.vercel.app",
-  MONGODB_URI: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/scancart",
+  MONGODB_URI: resolvedMongoUri,
   JWT_SECRET: process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 16 ? process.env.JWT_SECRET : "scancart_jwt_super_secret_production_key_2026_change_in_prod",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
   RECEIPT_SECRET: process.env.RECEIPT_SECRET && process.env.RECEIPT_SECRET.length >= 16 ? process.env.RECEIPT_SECRET : "scancart_hmac_sha256_receipt_secret_key_84920491",
@@ -112008,6 +112025,11 @@ var env = parsedEnv.success ? parsedEnv.data : {
 
 // src/config/db.ts
 var import_mongoose = __toESM(require_mongoose2());
+var import_dns = __toESM(require("dns"));
+try {
+  import_dns.default.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch {
+}
 var mongodInstance = null;
 var connectionPromise = null;
 async function connectDB() {

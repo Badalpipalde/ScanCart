@@ -39,7 +39,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectDB = connectDB;
 exports.disconnectDB = disconnectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
+const dns_1 = __importDefault(require("dns"));
 const env_1 = require("./env");
+// Configure reliable DNS servers to prevent querySrv ECONNREFUSED in serverless / cloud environments
+try {
+    dns_1.default.setServers(['8.8.8.8', '1.1.1.1']);
+}
+catch {
+    // Ignore in environments where setServers is restricted
+}
 let mongodInstance = null;
 let connectionPromise = null;
 async function connectDB() {
